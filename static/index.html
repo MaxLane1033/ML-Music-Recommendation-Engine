@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Vibe Recommendation Engine</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="layout">
+    <aside id="sidebar">
+      <button id="new-vibe-btn">+ New vibe</button>
+      <div id="vibe-list"></div>
+    </aside>
+
+    <main id="content">
+      <div id="empty-state">
+        <p>Select a vibe on the left, or create a new one to get started.</p>
+      </div>
+
+      <div id="new-vibe-form" class="hidden">
+        <h2>Name your vibe</h2>
+        <p>e.g. "Late-night drive" or "Summertime with the windows down"</p>
+        <input id="new-vibe-name" type="text" placeholder="Vibe name" />
+        <button id="create-vibe-btn">Create</button>
+      </div>
+
+      <div id="vibe-view" class="hidden">
+        <h2 id="vibe-title"></h2>
+
+        <section id="seed-section">
+          <h3>Seed songs</h3>
+          <p class="hint">Add 3-5 songs that capture this vibe. The more you add, the better the recommendations.</p>
+          <div id="seed-chips"></div>
+
+          <input id="song-search" type="text" placeholder="Search for a song..." autocomplete="off" />
+          <button id="artist-filter-toggle" type="button">Filter by artist</button>
+          <input id="artist-filter-input" type="text" placeholder="Artist name" autocomplete="off" class="hidden" />
+          <div id="search-results"></div>
+
+          <button id="artist-browse-toggle" type="button">Browse by artist</button>
+          <div id="artist-browse-panel" class="hidden">
+            <input id="artist-browse-search" type="text" placeholder="Search for an artist..." autocomplete="off" />
+            <div id="artist-browse-results"></div>
+            <div id="artist-track-list"></div>
+          </div>
+
+          <button id="generate-btn" disabled>Generate recommendations</button>
+          <p id="generate-error" class="error hidden"></p>
+        </section>
+
+        <section id="rounds"></section>
+      </div>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

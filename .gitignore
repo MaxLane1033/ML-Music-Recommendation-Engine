@@ -1,0 +1,5 @@
+venv/
+__pycache__/
+*.pyc
+vibes.db
+.DS_Store

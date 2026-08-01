@@ -1,0 +1,150 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  color: #1a1a1a;
+}
+
+#layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+#sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: #f2f2f2;
+  border-right: 1px solid #ccc;
+  padding: 12px;
+}
+
+#new-vibe-btn {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 12px;
+}
+
+.vibe-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px;
+  margin-bottom: 4px;
+  background: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.vibe-item:hover {
+  background: #e0e0e0;
+}
+
+.vibe-item.active {
+  background: #dcdcdc;
+  border-color: #999;
+}
+
+#content {
+  flex: 1;
+  padding: 24px;
+  max-width: 700px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.hint {
+  color: #555;
+  font-size: 0.9em;
+}
+
+#search-results {
+  border: 1px solid #ccc;
+  margin-top: 4px;
+}
+
+.search-result-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  cursor: pointer;
+}
+
+.search-result-row:hover {
+  background: #eee;
+}
+
+.thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  background: #ddd;
+}
+
+#seed-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.seed-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #999;
+  padding: 4px 8px;
+}
+
+.seed-chip button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.round {
+  border-top: 1px solid #ccc;
+  margin-top: 20px;
+  padding-top: 12px;
+}
+
+.song-card {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.song-card .thumb {
+  width: 56px;
+  height: 56px;
+}
+
+.song-meta .score {
+  color: #555;
+  font-size: 0.9em;
+}
+
+.song-meta .explanation {
+  font-size: 0.85em;
+  color: #444;
+}
+
+.error {
+  color: #b00020;
+}
+
+input[type="text"] {
+  padding: 6px;
+  width: 100%;
+  max-width: 400px;
+}
+
+button {
+  padding: 6px 12px;
+  cursor: pointer;
+}
