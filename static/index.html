@@ -44,6 +44,15 @@
             <div id="artist-track-list"></div>
           </div>
 
+          <button id="weights-toggle" type="button">Feature weights</button>
+          <div id="weights-panel" class="hidden">
+            <p class="hint">
+              Control how much each song feature matters when ranking recommendations for this vibe.
+              1.0 is normal importance, 0 means "ignore this feature entirely."
+            </p>
+            <div id="weights-list"></div>
+          </div>
+
           <button id="generate-btn" disabled>Generate recommendations</button>
           <p id="generate-error" class="error hidden"></p>
         </section>

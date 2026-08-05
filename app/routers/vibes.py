@@ -2,14 +2,17 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from .. import models, reccobeats_client, recommender, schemas, spotify_art
+from .. import language_filter, models, reccobeats_client, recommender, schemas, spotify_art
 from ..database import get_db
 
 router = APIRouter(prefix="/api/vibes", tags=["vibes"])
 
 MIN_SEEDS = 3
 MAX_API_SEEDS = 5  # ReccoBeats' /recommendation endpoint caps the `seeds` param at 5
-CANDIDATE_POOL_SIZE = 50
+# Pulled larger than the 5 we actually return since the English-only filter (and dedupe
+# against already-seen tracks) can knock out a sizeable chunk of any given pool.
+CANDIDATE_POOL_SIZE = 80
+MAX_FEATURE_WEIGHT = 5.0
 
 
 def _ensure_audio_features(db: Session, reccobeats_ids: list[str]) -> dict[str, recommender.FeatureDict]:
@@ -116,6 +119,23 @@ def remove_seed(vibe_id: int, seed_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
+@router.put("/{vibe_id}/weights", response_model=schemas.VibeDetail)
+def update_weights(vibe_id: int, payload: schemas.FeatureWeightsUpdate, db: Session = Depends(get_db)):
+    vibe = _get_vibe_or_404(db, vibe_id)
+
+    unknown = set(payload.weights) - set(recommender.ALL_FEATURES)
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"Unknown feature(s): {', '.join(sorted(unknown))}")
+
+    clamped = {
+        feature: max(0.0, min(MAX_FEATURE_WEIGHT, value)) for feature, value in payload.weights.items()
+    }
+    vibe.feature_weights = {**(vibe.feature_weights or {}), **clamped}
+    db.commit()
+    db.refresh(vibe)
+    return vibe
+
+
 @router.post("/{vibe_id}/generate", response_model=schemas.RoundOut)
 def generate_recommendations(vibe_id: int, db: Session = Depends(get_db)):
     vibe = _get_vibe_or_404(db, vibe_id)
@@ -157,15 +177,21 @@ def generate_recommendations(vibe_id: int, db: Session = Depends(get_db)):
     for c in candidates:
         if c["reccobeats_id"] in already_seen or c["reccobeats_id"] in deduped:
             continue
+        if not language_filter.is_english(c["title"], c["artist"]):
+            continue
         deduped[c["reccobeats_id"]] = c
 
     candidate_features = _ensure_audio_features(db, list(deduped.keys()))
     usable_features = {cid: feats for cid, feats in candidate_features.items() if cid in deduped}
 
     if not usable_features:
-        raise HTTPException(status_code=502, detail="ReccoBeats didn't return any usable new candidates. Try again.")
+        raise HTTPException(
+            status_code=502,
+            detail="No usable English-language candidates came back. Try again, or add a few more seeds.",
+        )
 
-    ranked = recommender.rank_candidates(centroid, usable_features, deduped, top_n=5)
+    weights = {**recommender.DEFAULT_WEIGHTS, **(vibe.feature_weights or {})}
+    ranked = recommender.rank_candidates(centroid, usable_features, deduped, weights=weights, top_n=5)
 
     round_ = models.RecommendationRound(
         vibe_id=vibe.id,

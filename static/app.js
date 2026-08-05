@@ -1,6 +1,7 @@
 const state = {
   vibes: [],
   currentVibe: null, // full detail object from GET /api/vibes/:id
+  featureMeta: null, // [{key, label, description, default_weight}, ...], fetched once and cached
 };
 
 const el = {
@@ -21,6 +22,9 @@ const el = {
   artistBrowseSearch: document.getElementById("artist-browse-search"),
   artistBrowseResults: document.getElementById("artist-browse-results"),
   artistTrackList: document.getElementById("artist-track-list"),
+  weightsToggle: document.getElementById("weights-toggle"),
+  weightsPanel: document.getElementById("weights-panel"),
+  weightsList: document.getElementById("weights-list"),
   seedChips: document.getElementById("seed-chips"),
   generateBtn: document.getElementById("generate-btn"),
   generateError: document.getElementById("generate-error"),
@@ -80,9 +84,11 @@ function renderVibeView() {
   el.artistBrowseSearch.value = "";
   el.artistBrowseResults.innerHTML = "";
   el.artistTrackList.innerHTML = "";
+  el.weightsPanel.classList.add("hidden");
   el.generateError.classList.add("hidden");
   renderSeedChips();
   renderRounds();
+  renderWeights();
 }
 
 function renderSeedChips() {
@@ -132,6 +138,67 @@ function renderRounds() {
 
     el.rounds.appendChild(roundDiv);
   }
+}
+
+el.weightsToggle.addEventListener("click", () => {
+  el.weightsPanel.classList.toggle("hidden");
+});
+
+async function renderWeights() {
+  if (!state.featureMeta) {
+    state.featureMeta = await api("/api/features");
+  }
+
+  el.weightsList.innerHTML = "";
+  const weights = state.currentVibe.feature_weights || {};
+
+  for (const feature of state.featureMeta) {
+    const row = document.createElement("div");
+    row.className = "weight-row";
+
+    const labelRow = document.createElement("div");
+    labelRow.className = "weight-label-row";
+
+    const label = document.createElement("label");
+    label.textContent = feature.label;
+    labelRow.appendChild(label);
+
+    const valueDisplay = document.createElement("span");
+    valueDisplay.className = "weight-value";
+    const currentValue = weights[feature.key] ?? feature.default_weight;
+    valueDisplay.textContent = currentValue.toFixed(1);
+    labelRow.appendChild(valueDisplay);
+
+    row.appendChild(labelRow);
+
+    const description = document.createElement("p");
+    description.className = "hint weight-description";
+    description.textContent = feature.description;
+    row.appendChild(description);
+
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = "0";
+    slider.max = "3";
+    slider.step = "0.1";
+    slider.value = currentValue;
+    slider.addEventListener("input", () => {
+      valueDisplay.textContent = parseFloat(slider.value).toFixed(1);
+    });
+    slider.addEventListener("change", () => {
+      saveWeight(feature.key, parseFloat(slider.value));
+    });
+    row.appendChild(slider);
+
+    el.weightsList.appendChild(row);
+  }
+}
+
+async function saveWeight(key, value) {
+  state.currentVibe = await api(`/api/vibes/${state.currentVibe.id}/weights`, {
+    method: "PUT",
+    body: JSON.stringify({ weights: { [key]: value } }),
+  });
 }
 
 function buildSongCard(song) {

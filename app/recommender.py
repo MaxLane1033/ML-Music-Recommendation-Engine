@@ -77,6 +77,34 @@ FEATURE_DIRECTIONS: dict[str, tuple[str, str]] = {
     "valence": ("darker/sadder", "brighter/happier"),
 }
 
+# Plain-English descriptions shown next to each feature's weight slider in the UI.
+FEATURE_DESCRIPTIONS: dict[str, str] = {
+    "acousticness": "How much the track leans on natural/acoustic instruments vs. electronic production (0 = fully electronic, 1 = fully acoustic).",
+    "danceability": "How suitable the track is for dancing, based on tempo, rhythm stability, and beat strength.",
+    "energy": "How intense and fast-paced the track feels (low = calm/mellow, high = intense/energetic).",
+    "instrumentalness": "How likely the track has no vocals -- higher values mean more purely instrumental.",
+    "liveness": "How likely the track was recorded in front of a live audience, rather than in a studio.",
+    "loudness": "The track's overall loudness in decibels.",
+    "speechiness": "How much spoken word is present, as opposed to singing or instrumental music.",
+    "tempo": "The track's speed, in beats per minute (BPM).",
+    "valence": "How positive the track's mood sounds (low = sad/dark, high = happy/upbeat).",
+    "key": "How closely the track's musical key matches your seed songs (e.g. C major vs. A minor).",
+    "mode": "Whether the track is in a major key (brighter, happier-sounding) or a minor key (moodier, more serious-sounding).",
+}
+
+
+def feature_metadata() -> list[dict]:
+    """Everything the frontend needs to render one weight slider per feature."""
+    return [
+        {
+            "key": feature,
+            "label": FEATURE_LABELS[feature],
+            "description": FEATURE_DESCRIPTIONS[feature],
+            "default_weight": DEFAULT_WEIGHTS[feature],
+        }
+        for feature in ALL_FEATURES
+    ]
+
 
 def normalize_linear(feature: str, value: float) -> float:
     lo, hi = LINEAR_FEATURE_BOUNDS[feature]
@@ -166,18 +194,28 @@ def match_score(distance: float, weights: dict[str, float] | None = None) -> flo
 
 
 def explain(centroid: Centroid, candidate: FeatureDict, weights: dict[str, float] | None = None) -> str:
-    """Human-readable explanation built from the features closest to (and furthest from) the centroid."""
+    """Human-readable explanation built from the features closest to (and furthest from) the centroid.
+
+    Features the user has weighted to 0 ("I don't care about this") are left out entirely -- both
+    from the "closely matches" praise and the "though it's ___ than your seeds" contrast, since
+    they played no part in the ranking.
+    """
     weights = weights or DEFAULT_WEIGHTS
     deltas: list[tuple[str, float, float]] = []  # (feature, abs_normalized_diff, signed_normalized_diff)
 
     for feature in LINEAR_FEATURES:
+        if weights.get(feature, 1.0) <= 0:
+            continue
         candidate_norm = normalize_linear(feature, candidate[feature])
         signed = candidate_norm - centroid.linear[feature]
         deltas.append((feature, abs(signed), signed))
 
+    if not deltas:
+        return "matched using only de-emphasized features, so no single feature stands out."
+
     deltas.sort(key=lambda d: d[1])
     closest = [d for d in deltas if d[1] <= 0.12][:2]
-    furthest = deltas[-1]
+    furthest = max(deltas, key=lambda d: weights.get(d[0], 1.0) * d[1])
 
     parts = []
     if closest:

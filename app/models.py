@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -12,6 +12,9 @@ class Vibe(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # Per-feature weight overrides for this vibe's scoring, e.g. {"energy": 2.0, "key": 0.0}.
+    # None (or a missing key) means "use the default weight of 1.0" -- see recommender.DEFAULT_WEIGHTS.
+    feature_weights: Mapped[dict[str, float] | None] = mapped_column(JSON, nullable=True)
 
     seeds: Mapped[list["SeedSong"]] = relationship(
         back_populates="vibe", cascade="all, delete-orphan", order_by="SeedSong.added_at"
