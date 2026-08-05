@@ -112,6 +112,56 @@ body {
   padding-top: 12px;
 }
 
+.round-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.rank-confirmation {
+  color: #1a7a1a;
+  font-size: 0.9em;
+}
+
+.ranking-list {
+  margin-top: 8px;
+}
+
+.ranking-rows {
+  border: 1px solid #ccc;
+}
+
+.ranking-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-bottom: 1px solid #eee;
+  cursor: grab;
+}
+
+.ranking-row:last-child {
+  border-bottom: none;
+}
+
+.ranking-row.dragging {
+  opacity: 0.4;
+}
+
+.rank-position {
+  font-weight: bold;
+  width: 24px;
+}
+
+.ranking-label {
+  flex: 1;
+}
+
+.ranking-arrows button {
+  padding: 2px 8px;
+}
+
 .song-card {
   display: flex;
   gap: 10px;

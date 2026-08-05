@@ -122,22 +122,179 @@ function renderSeedChips() {
   el.generateBtn.textContent = hasRounds ? "Generate 5 more" : "Generate recommendations";
 }
 
+// roundId -> { active: bool, order: [songId,...], confirmation?: string }
+// Ephemeral UI-only state for the "Rank Recs" flow -- not part of the persisted vibe.
+const rankingState = {};
+
 function renderRounds() {
   el.rounds.innerHTML = "";
   for (const round of state.currentVibe.rounds) {
-    const roundDiv = document.createElement("div");
-    roundDiv.className = "round";
+    el.rounds.appendChild(buildRoundCard(round));
+  }
+}
 
-    const heading = document.createElement("h3");
-    heading.textContent = `Round ${round.round_number} (from ${round.seed_count_at_time} seed songs)`;
-    roundDiv.appendChild(heading);
+function buildRoundCard(round) {
+  const roundDiv = document.createElement("div");
+  roundDiv.className = "round";
 
+  const headerRow = document.createElement("div");
+  headerRow.className = "round-header";
+
+  const heading = document.createElement("h3");
+  heading.textContent = `Round ${round.round_number} (from ${round.seed_count_at_time} seed songs)`;
+  headerRow.appendChild(heading);
+
+  const entry = rankingState[round.id];
+  const rankBtn = document.createElement("button");
+  rankBtn.type = "button";
+  rankBtn.textContent = entry && entry.active ? "Cancel ranking" : "Rank Recs";
+  rankBtn.addEventListener("click", () => toggleRanking(round));
+  headerRow.appendChild(rankBtn);
+
+  roundDiv.appendChild(headerRow);
+
+  if (entry && entry.confirmation) {
+    const msg = document.createElement("p");
+    msg.className = "rank-confirmation";
+    msg.textContent = entry.confirmation;
+    roundDiv.appendChild(msg);
+  }
+
+  if (entry && entry.active) {
+    roundDiv.appendChild(buildRankingList(round));
+  } else {
     for (const song of round.songs) {
       roundDiv.appendChild(buildSongCard(song));
     }
-
-    el.rounds.appendChild(roundDiv);
   }
+
+  return roundDiv;
+}
+
+function toggleRanking(round) {
+  const current = rankingState[round.id];
+  if (current && current.active) {
+    delete rankingState[round.id];
+  } else {
+    const order = [...round.songs]
+      .sort((a, b) => (a.user_rank ?? a.rank) - (b.user_rank ?? b.rank))
+      .map((s) => s.id);
+    rankingState[round.id] = { active: true, order };
+  }
+  renderRounds();
+}
+
+function buildRankingList(round) {
+  const wrap = document.createElement("div");
+  wrap.className = "ranking-list";
+
+  const hint = document.createElement("p");
+  hint.className = "hint";
+  hint.textContent = "Drag to reorder, or use the arrows — #1 is your best match, #5 your worst.";
+  wrap.appendChild(hint);
+
+  const entry = rankingState[round.id];
+  const songsById = Object.fromEntries(round.songs.map((s) => [s.id, s]));
+
+  const rows = document.createElement("div");
+  rows.className = "ranking-rows";
+
+  let dragFromIndex = null;
+
+  entry.order.forEach((songId, index) => {
+    const song = songsById[songId];
+    const row = document.createElement("div");
+    row.className = "ranking-row";
+    row.draggable = true;
+
+    row.addEventListener("dragstart", () => {
+      dragFromIndex = index;
+      row.classList.add("dragging");
+    });
+    row.addEventListener("dragend", () => row.classList.remove("dragging"));
+    row.addEventListener("dragover", (e) => e.preventDefault());
+    row.addEventListener("drop", (e) => {
+      e.preventDefault();
+      if (dragFromIndex === null || dragFromIndex === index) return;
+      moveRankingItem(round, dragFromIndex, index);
+    });
+
+    const posBadge = document.createElement("span");
+    posBadge.className = "rank-position";
+    posBadge.textContent = `#${index + 1}`;
+    row.appendChild(posBadge);
+
+    if (song.thumbnail_url) {
+      const img = document.createElement("img");
+      img.className = "thumb";
+      img.src = song.thumbnail_url;
+      row.appendChild(img);
+    }
+
+    const label = document.createElement("span");
+    label.className = "ranking-label";
+    label.textContent = `${song.title} — ${song.artist}`;
+    row.appendChild(label);
+
+    const arrows = document.createElement("span");
+    arrows.className = "ranking-arrows";
+
+    const upBtn = document.createElement("button");
+    upBtn.type = "button";
+    upBtn.textContent = "↑";
+    upBtn.disabled = index === 0;
+    upBtn.addEventListener("click", () => moveRankingItem(round, index, index - 1));
+    arrows.appendChild(upBtn);
+
+    const downBtn = document.createElement("button");
+    downBtn.type = "button";
+    downBtn.textContent = "↓";
+    downBtn.disabled = index === entry.order.length - 1;
+    downBtn.addEventListener("click", () => moveRankingItem(round, index, index + 1));
+    arrows.appendChild(downBtn);
+
+    row.appendChild(arrows);
+    rows.appendChild(row);
+  });
+
+  wrap.appendChild(rows);
+
+  const submitBtn = document.createElement("button");
+  submitBtn.type = "button";
+  submitBtn.textContent = "Submit";
+  submitBtn.addEventListener("click", () => submitRanking(round));
+  wrap.appendChild(submitBtn);
+
+  return wrap;
+}
+
+function moveRankingItem(round, fromIndex, toIndex) {
+  const entry = rankingState[round.id];
+  const [moved] = entry.order.splice(fromIndex, 1);
+  entry.order.splice(toIndex, 0, moved);
+  renderRounds();
+}
+
+async function submitRanking(round) {
+  const entry = rankingState[round.id];
+  try {
+    await api(`/api/vibes/${state.currentVibe.id}/rounds/${round.id}/rank`, {
+      method: "PUT",
+      body: JSON.stringify({ song_ids: entry.order }),
+    });
+  } catch (err) {
+    alert(err.message);
+    return;
+  }
+  state.currentVibe = await api(`/api/vibes/${state.currentVibe.id}`);
+  rankingState[round.id] = { active: false, confirmation: "Your preferences have been updated." };
+  renderRounds();
+  setTimeout(() => {
+    if (rankingState[round.id]) {
+      delete rankingState[round.id].confirmation;
+      renderRounds();
+    }
+  }, 3000);
 }
 
 el.weightsToggle.addEventListener("click", () => {
@@ -222,6 +379,9 @@ function buildSongCard(song) {
   const score = document.createElement("div");
   score.className = "score";
   score.textContent = `Match: ${song.match_score}%`;
+  if (song.user_rank) {
+    score.textContent += ` — Your rank: #${song.user_rank}`;
+  }
   meta.appendChild(score);
 
   const explanation = document.createElement("div");

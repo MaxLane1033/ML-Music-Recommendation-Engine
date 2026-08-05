@@ -62,6 +62,7 @@ class RecommendedSongOut(BaseModel):
     rank: int
     match_score: float
     explanation: str
+    user_rank: int | None = None
 
     class Config:
         from_attributes = True
@@ -99,6 +100,13 @@ class VibeDetail(BaseModel):
 
 class FeatureWeightsUpdate(BaseModel):
     weights: dict[str, float]
+
+
+class RoundRankSubmission(BaseModel):
+    # Ordered list of that round's RecommendedSong ids, best-to-worst per the user
+    # (index 0 -> user_rank 1, ..., last -> user_rank 5). Must be exactly the set of
+    # song ids belonging to the round, no more, no less.
+    song_ids: list[int]
 
 
 class FeatureMeta(BaseModel):

@@ -3,10 +3,11 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from .database import Base, engine
+from .database import Base, engine, run_lightweight_migrations
 from .routers import artists, features, search, vibes
 
 Base.metadata.create_all(bind=engine)
+run_lightweight_migrations()
 
 app = FastAPI(title="Vibe Recommendation Engine")
 

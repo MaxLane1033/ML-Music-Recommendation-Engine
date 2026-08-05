@@ -67,6 +67,11 @@ class RecommendedSong(Base):
     rank: Mapped[int] = mapped_column(Integer, nullable=False)
     match_score: Mapped[float] = mapped_column(Float, nullable=False)
     explanation: Mapped[str] = mapped_column(String, nullable=False)
+    # User-submitted preference rank (1 = best, 5 = worst) from the "Rank Recs" UI.
+    # None until the user has ranked this round. Kept separate from `rank` (the
+    # match-score ordering) so both are preserved -- future feedback-driven tuning
+    # (e.g. Rocchio-style centroid nudging) can compare the two.
+    user_rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     round: Mapped["RecommendationRound"] = relationship(back_populates="songs")
 

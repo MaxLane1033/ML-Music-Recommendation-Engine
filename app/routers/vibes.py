@@ -12,6 +12,10 @@ MAX_API_SEEDS = 5  # ReccoBeats' /recommendation endpoint caps the `seeds` param
 # Pulled larger than the 5 we actually return since the English-only filter (and dedupe
 # against already-seen tracks) can knock out a sizeable chunk of any given pool.
 CANDIDATE_POOL_SIZE = 80
+# The final 5 must come from among the 20 most popular tracks in the generated candidate
+# pool (by ReccoBeats' own `popularity` figure), not just whichever scored closest to the
+# centroid -- keeps recommendations from surfacing obscure/low-signal tracks.
+POPULARITY_POOL_SIZE = 20
 MAX_FEATURE_WEIGHT = 5.0
 
 
@@ -190,8 +194,15 @@ def generate_recommendations(vibe_id: int, db: Session = Depends(get_db)):
             detail="No usable English-language candidates came back. Try again, or add a few more seeds.",
         )
 
+    # Restrict to the most popular tracks in the pool *before* ranking by centroid
+    # distance, so the top-5 we hand back are always drawn from well-known songs.
+    most_popular_ids = sorted(
+        usable_features, key=lambda cid: deduped[cid].get("popularity", 0), reverse=True
+    )[:POPULARITY_POOL_SIZE]
+    popular_features = {cid: usable_features[cid] for cid in most_popular_ids}
+
     weights = {**recommender.DEFAULT_WEIGHTS, **(vibe.feature_weights or {})}
-    ranked = recommender.rank_candidates(centroid, usable_features, deduped, weights=weights, top_n=5)
+    ranked = recommender.rank_candidates(centroid, popular_features, deduped, weights=weights, top_n=5)
 
     round_ = models.RecommendationRound(
         vibe_id=vibe.id,
@@ -217,6 +228,31 @@ def generate_recommendations(vibe_id: int, db: Session = Depends(get_db)):
                 explanation=r["explanation"],
             )
         )
+    db.commit()
+    db.refresh(round_)
+    return round_
+
+
+@router.put("/{vibe_id}/rounds/{round_id}/rank", response_model=schemas.RoundOut)
+def submit_round_rank(
+    vibe_id: int, round_id: int, payload: schemas.RoundRankSubmission, db: Session = Depends(get_db)
+):
+    _get_vibe_or_404(db, vibe_id)
+
+    round_ = db.get(models.RecommendationRound, round_id)
+    if round_ is None or round_.vibe_id != vibe_id:
+        raise HTTPException(status_code=404, detail="Round not found")
+
+    songs_by_id = {song.id: song for song in round_.songs}
+    if set(payload.song_ids) != set(songs_by_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Ranking must include exactly the songs in this round, each exactly once.",
+        )
+
+    for position, song_id in enumerate(payload.song_ids, start=1):
+        songs_by_id[song_id].user_rank = position
+
     db.commit()
     db.refresh(round_)
     return round_
