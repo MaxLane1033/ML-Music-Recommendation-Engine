@@ -89,6 +89,13 @@ def get_vibe(vibe_id: int, db: Session = Depends(get_db)):
     return _get_vibe_or_404(db, vibe_id)
 
 
+@router.delete("/{vibe_id}", status_code=204)
+def delete_vibe(vibe_id: int, db: Session = Depends(get_db)):
+    vibe = _get_vibe_or_404(db, vibe_id)
+    db.delete(vibe)
+    db.commit()
+
+
 @router.post("/{vibe_id}/seeds", response_model=schemas.SeedOut)
 def add_seed(vibe_id: int, payload: schemas.SeedCreate, db: Session = Depends(get_db)):
     vibe = _get_vibe_or_404(db, vibe_id)

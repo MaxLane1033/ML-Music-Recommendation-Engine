@@ -49,6 +49,15 @@ LINEAR_FEATURES = list(LINEAR_FEATURE_BOUNDS)
 ALL_FEATURES = LINEAR_FEATURES + ["key", "mode"]
 
 DEFAULT_WEIGHTS: dict[str, float] = {feature: 1.0 for feature in ALL_FEATURES}
+# `mode` is binary (major/minor), so any mismatch contributes a full point to the
+# weighted-distance sum -- the same as being *maximally* different on every continuous
+# feature at once. Verified against several user-supplied "these songs are a similar
+# vibe" pairs: whenever mode happened to match, match scores looked right (~85%);
+# whenever it didn't, mode alone accounted for 45-77% of the total distance and dragged
+# otherwise-close pairs down to ~65%, regardless of how close everything else was.
+# Lowered so a mode mismatch behaves like one moderately-weighted feature rather than
+# swamping the rest. Still fully user-adjustable via the "major/minor tonality" slider.
+DEFAULT_WEIGHTS["mode"] = 0.25
 
 FEATURE_LABELS: dict[str, str] = {
     "acousticness": "acousticness",

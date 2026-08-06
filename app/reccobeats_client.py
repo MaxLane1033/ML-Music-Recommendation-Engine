@@ -24,17 +24,43 @@ def _track_summary(raw: dict[str, Any]) -> dict[str, Any]:
         "artist": ", ".join(a["name"] for a in raw.get("artists", [])) or "Unknown artist",
         "spotify_url": raw.get("href"),
         "popularity": raw.get("popularity", 0),
+        "isrc": raw.get("isrc"),
     }
 
 
+def _dedupe_by_song(tracks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Collapse ReccoBeats' duplicate catalog entries for one song down to its single
+    most popular entry, then sort what's left by popularity (ReccoBeats' own result
+    order is neither deduped nor popularity-sorted).
+
+    ReccoBeats -- wrapping Spotify's catalog -- lists the same recording separately per
+    territory/label release, each with its own (often near-zero) popularity score. ISRC
+    is the industry-standard unique-recording id and is present on virtually every
+    result, so it's a reliable grouping key -- unlike title/artist text, it won't
+    accidentally merge genuinely different versions (a remix or extended mix has its
+    own ISRC and correctly stays separate). Falls back to a normalized title+artist key
+    only for the rare result with no ISRC.
+    """
+    best: dict[Any, dict[str, Any]] = {}
+    for t in tracks:
+        key = t.get("isrc") or (t["title"].strip().lower(), t["artist"].strip().lower())
+        current = best.get(key)
+        if current is None or t.get("popularity", 0) > current.get("popularity", 0):
+            best[key] = t
+    return sorted(best.values(), key=lambda t: t.get("popularity", 0), reverse=True)
+
+
 def search_tracks(query: str, limit: int = 8, artist: str | None = None) -> list[dict[str, Any]]:
-    params: dict[str, Any] = {"searchText": query, "size": limit}
+    # Pull a larger raw pool than `limit` -- duplicate catalog entries for the same song
+    # (see _dedupe_by_song) can otherwise eat most of a small result page.
+    params: dict[str, Any] = {"searchText": query, "size": max(limit * 4, 30)}
     if artist:
         params["artist"] = artist
     response = _client.get("/track/search", params=params)
     response.raise_for_status()
     content = response.json().get("content", [])
-    return [_track_summary(t) for t in content]
+    tracks = _dedupe_by_song([_track_summary(t) for t in content])
+    return tracks[:limit]
 
 
 def search_artists(query: str, limit: int = 8) -> list[dict[str, Any]]:
@@ -49,8 +75,7 @@ def get_artist_tracks(artist_id: str, limit: int = 25) -> list[dict[str, Any]]:
     response = _client.get(f"/artist/{artist_id}/track", params={"size": 50})
     response.raise_for_status()
     content = response.json().get("content", [])
-    tracks = [_track_summary(t) for t in content]
-    tracks.sort(key=lambda t: t["popularity"], reverse=True)
+    tracks = _dedupe_by_song([_track_summary(t) for t in content])
     return tracks[:limit]
 
 

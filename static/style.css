@@ -25,12 +25,22 @@ body {
   margin-bottom: 12px;
 }
 
+.vibe-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
 .vibe-item {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-align: left;
   padding: 8px;
-  margin-bottom: 4px;
   background: none;
   border: 1px solid transparent;
   cursor: pointer;
@@ -42,6 +52,21 @@ body {
 
 .vibe-item.active {
   background: #dcdcdc;
+  border-color: #999;
+}
+
+.vibe-delete {
+  flex-shrink: 0;
+  padding: 4px 6px;
+  background: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 0.9em;
+  line-height: 1;
+}
+
+.vibe-delete:hover {
+  background: #e0e0e0;
   border-color: #999;
 }
 

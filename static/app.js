@@ -59,11 +59,39 @@ async function loadVibes() {
 function renderSidebar() {
   el.vibeList.innerHTML = "";
   for (const vibe of state.vibes) {
+    const row = document.createElement("div");
+    row.className = "vibe-row";
+
     const btn = document.createElement("button");
     btn.className = "vibe-item" + (state.currentVibe && state.currentVibe.id === vibe.id ? " active" : "");
     btn.textContent = vibe.name;
     btn.addEventListener("click", () => selectVibe(vibe.id));
-    el.vibeList.appendChild(btn);
+    row.appendChild(btn);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "vibe-delete";
+    deleteBtn.title = "Delete vibe";
+    deleteBtn.textContent = "\u{1F5D1}️";
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteVibe(vibe);
+    });
+    row.appendChild(deleteBtn);
+
+    el.vibeList.appendChild(row);
+  }
+}
+
+async function deleteVibe(vibe) {
+  if (!confirm(`Delete "${vibe.name}"? This removes its seeds and all recommendation rounds. This can't be undone.`)) {
+    return;
+  }
+  await api(`/api/vibes/${vibe.id}`, { method: "DELETE" });
+  const wasCurrent = state.currentVibe && state.currentVibe.id === vibe.id;
+  if (wasCurrent) state.currentVibe = null;
+  await loadVibes();
+  if (wasCurrent) {
+    showPanel(el.emptyState);
   }
 }
 
