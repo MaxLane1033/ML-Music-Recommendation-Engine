@@ -53,6 +53,18 @@
             <div id="weights-list"></div>
           </div>
 
+          <div id="popularity-row" class="weight-row">
+            <div class="weight-label-row">
+              <label for="popularity-slider">Popularity</label>
+              <span id="popularity-value" class="weight-value"></span>
+            </div>
+            <p class="hint weight-description">
+              How much recommendations are restricted to well-known songs. Lower = only popular
+              tracks; higher = allow more obscure/deep-cut picks through.
+            </p>
+            <input id="popularity-slider" type="range" min="0.05" max="1" step="0.05" />
+          </div>
+
           <button id="generate-btn" disabled>Generate recommendations</button>
           <p id="generate-error" class="error hidden"></p>
         </section>

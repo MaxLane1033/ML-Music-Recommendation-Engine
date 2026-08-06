@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, model_validator
 
-from .recommender import DEFAULT_WEIGHTS
+from .recommender import DEFAULT_POPULARITY_FRACTION, DEFAULT_WEIGHTS
 
 
 class VibeCreate(BaseModel):
@@ -86,20 +86,27 @@ class VibeDetail(BaseModel):
     seeds: list[SeedOut]
     rounds: list[RoundOut]
     feature_weights: dict[str, float] | None = None
+    popularity_fraction: float | None = None
 
     class Config:
         from_attributes = True
 
     @model_validator(mode="after")
-    def _fill_default_weights(self) -> "VibeDetail":
+    def _fill_defaults(self) -> "VibeDetail":
         merged = dict(DEFAULT_WEIGHTS)
         merged.update(self.feature_weights or {})
         self.feature_weights = merged
+        if self.popularity_fraction is None:
+            self.popularity_fraction = DEFAULT_POPULARITY_FRACTION
         return self
 
 
 class FeatureWeightsUpdate(BaseModel):
     weights: dict[str, float]
+
+
+class PopularityFractionUpdate(BaseModel):
+    popularity_fraction: float
 
 
 class RoundRankSubmission(BaseModel):

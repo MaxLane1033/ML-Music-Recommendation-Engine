@@ -9,13 +9,10 @@ router = APIRouter(prefix="/api/vibes", tags=["vibes"])
 
 MIN_SEEDS = 3
 MAX_API_SEEDS = 5  # ReccoBeats' /recommendation endpoint caps the `seeds` param at 5
+RECS_PER_ROUND = 5
 # Pulled larger than the 5 we actually return since the English-only filter (and dedupe
 # against already-seen tracks) can knock out a sizeable chunk of any given pool.
 CANDIDATE_POOL_SIZE = 80
-# The final 5 must come from among the 20 most popular tracks in the generated candidate
-# pool (by ReccoBeats' own `popularity` figure), not just whichever scored closest to the
-# centroid -- keeps recommendations from surfacing obscure/low-signal tracks.
-POPULARITY_POOL_SIZE = 20
 MAX_FEATURE_WEIGHT = 5.0
 
 
@@ -147,6 +144,19 @@ def update_weights(vibe_id: int, payload: schemas.FeatureWeightsUpdate, db: Sess
     return vibe
 
 
+@router.put("/{vibe_id}/popularity", response_model=schemas.VibeDetail)
+def update_popularity_fraction(
+    vibe_id: int, payload: schemas.PopularityFractionUpdate, db: Session = Depends(get_db)
+):
+    vibe = _get_vibe_or_404(db, vibe_id)
+    vibe.popularity_fraction = max(
+        recommender.MIN_POPULARITY_FRACTION, min(recommender.MAX_POPULARITY_FRACTION, payload.popularity_fraction)
+    )
+    db.commit()
+    db.refresh(vibe)
+    return vibe
+
+
 @router.post("/{vibe_id}/generate", response_model=schemas.RoundOut)
 def generate_recommendations(vibe_id: int, db: Session = Depends(get_db)):
     vibe = _get_vibe_or_404(db, vibe_id)
@@ -201,15 +211,20 @@ def generate_recommendations(vibe_id: int, db: Session = Depends(get_db)):
             detail="No usable English-language candidates came back. Try again, or add a few more seeds.",
         )
 
-    # Restrict to the most popular tracks in the pool *before* ranking by centroid
-    # distance, so the top-5 we hand back are always drawn from well-known songs.
+    # Restrict to the most popular fraction of the eligible pool *before* ranking by
+    # centroid distance, so the top-5 we hand back are always drawn from well-known songs
+    # (unless the user's turned the "Popularity" slider up to allow deeper cuts through).
+    # Always keep at least enough candidates to fill a round, even if the fraction alone
+    # would cut deeper than that.
+    fraction = vibe.popularity_fraction or recommender.DEFAULT_POPULARITY_FRACTION
+    pool_size = max(RECS_PER_ROUND, round(len(usable_features) * fraction))
     most_popular_ids = sorted(
         usable_features, key=lambda cid: deduped[cid].get("popularity", 0), reverse=True
-    )[:POPULARITY_POOL_SIZE]
+    )[:pool_size]
     popular_features = {cid: usable_features[cid] for cid in most_popular_ids}
 
     weights = {**recommender.DEFAULT_WEIGHTS, **(vibe.feature_weights or {})}
-    ranked = recommender.rank_candidates(centroid, popular_features, deduped, weights=weights, top_n=5)
+    ranked = recommender.rank_candidates(centroid, popular_features, deduped, weights=weights, top_n=RECS_PER_ROUND)
 
     round_ = models.RecommendationRound(
         vibe_id=vibe.id,

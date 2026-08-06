@@ -34,10 +34,16 @@ def run_lightweight_migrations() -> None:
     (where create_all already created the column) and on databases that
     already have it.
     """
-    inspector = inspect(engine)
-    if "recommended_songs" not in inspector.get_table_names():
-        return
-    columns = {col["name"] for col in inspector.get_columns("recommended_songs")}
-    if "user_rank" not in columns:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE recommended_songs ADD COLUMN user_rank INTEGER"))
+    table_names = inspect(engine).get_table_names()
+
+    if "recommended_songs" in table_names:
+        columns = {col["name"] for col in inspect(engine).get_columns("recommended_songs")}
+        if "user_rank" not in columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE recommended_songs ADD COLUMN user_rank INTEGER"))
+
+    if "vibes" in table_names:
+        columns = {col["name"] for col in inspect(engine).get_columns("vibes")}
+        if "popularity_fraction" not in columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE vibes ADD COLUMN popularity_fraction FLOAT"))

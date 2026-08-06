@@ -48,6 +48,14 @@ LINEAR_FEATURES = list(LINEAR_FEATURE_BOUNDS)
 # specially-handled `key` (circular) and `mode` (binary, already 0-1).
 ALL_FEATURES = LINEAR_FEATURES + ["key", "mode"]
 
+# Fraction of the eligible (English-filtered, deduped) candidate pool, sorted by
+# popularity, that recommendations are drawn from. 1.0 removes the popularity
+# restriction entirely (deep cuts allowed); smaller values restrict to progressively
+# more mainstream tracks. User-adjustable per vibe via the "Popularity" slider.
+DEFAULT_POPULARITY_FRACTION = 0.5
+MIN_POPULARITY_FRACTION = 0.05
+MAX_POPULARITY_FRACTION = 1.0
+
 DEFAULT_WEIGHTS: dict[str, float] = {feature: 1.0 for feature in ALL_FEATURES}
 # `mode` is binary (major/minor), so any mismatch contributes a full point to the
 # weighted-distance sum -- the same as being *maximally* different on every continuous

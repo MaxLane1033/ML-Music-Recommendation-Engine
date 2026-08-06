@@ -15,6 +15,10 @@ class Vibe(Base):
     # Per-feature weight overrides for this vibe's scoring, e.g. {"energy": 2.0, "key": 0.0}.
     # None (or a missing key) means "use the default weight of 1.0" -- see recommender.DEFAULT_WEIGHTS.
     feature_weights: Mapped[dict[str, float] | None] = mapped_column(JSON, nullable=True)
+    # Fraction (0-1] of the eligible candidate pool, sorted by popularity, that recs are
+    # drawn from -- e.g. 0.5 = only the more popular half is eligible, 1.0 = no popularity
+    # restriction at all. None means "use the default" -- see routers.vibes.DEFAULT_POPULARITY_FRACTION.
+    popularity_fraction: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     seeds: Mapped[list["SeedSong"]] = relationship(
         back_populates="vibe", cascade="all, delete-orphan", order_by="SeedSong.added_at"

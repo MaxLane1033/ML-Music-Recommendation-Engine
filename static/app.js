@@ -25,6 +25,8 @@ const el = {
   weightsToggle: document.getElementById("weights-toggle"),
   weightsPanel: document.getElementById("weights-panel"),
   weightsList: document.getElementById("weights-list"),
+  popularitySlider: document.getElementById("popularity-slider"),
+  popularityValue: document.getElementById("popularity-value"),
   seedChips: document.getElementById("seed-chips"),
   generateBtn: document.getElementById("generate-btn"),
   generateError: document.getElementById("generate-error"),
@@ -117,7 +119,25 @@ function renderVibeView() {
   renderSeedChips();
   renderRounds();
   renderWeights();
+  renderPopularitySlider();
 }
+
+function renderPopularitySlider() {
+  const value = state.currentVibe.popularity_fraction ?? 0.5;
+  el.popularitySlider.value = value;
+  el.popularityValue.textContent = value.toFixed(2);
+}
+
+el.popularitySlider.addEventListener("input", () => {
+  el.popularityValue.textContent = parseFloat(el.popularitySlider.value).toFixed(2);
+});
+
+el.popularitySlider.addEventListener("change", async () => {
+  state.currentVibe = await api(`/api/vibes/${state.currentVibe.id}/popularity`, {
+    method: "PUT",
+    body: JSON.stringify({ popularity_fraction: parseFloat(el.popularitySlider.value) }),
+  });
+});
 
 function renderSeedChips() {
   el.seedChips.innerHTML = "";
