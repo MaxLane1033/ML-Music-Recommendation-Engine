@@ -79,6 +79,21 @@ def get_artist_tracks(artist_id: str, limit: int = 25) -> list[dict[str, Any]]:
     return tracks[:limit]
 
 
+def get_track_detail(reccobeats_id: str) -> dict[str, Any] | None:
+    """Same shape as a search result, fetched for a single known id -- used to get a
+    seed's ISRC (needed for MusicBrainz lookups) without re-running a text search."""
+    response = _client.get(f"/track/{reccobeats_id}")
+    if response.status_code >= 400:
+        return None
+    return _track_summary(response.json())
+
+
+def get_track_details_bulk(reccobeats_ids: list[str]) -> dict[str, dict[str, Any] | None]:
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+        results = pool.map(get_track_detail, reccobeats_ids)
+    return dict(zip(reccobeats_ids, results))
+
+
 def get_audio_features(reccobeats_id: str) -> dict[str, Any] | None:
     response = _client.get(f"/track/{reccobeats_id}/audio-features")
     if response.status_code >= 400:

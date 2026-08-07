@@ -108,3 +108,19 @@ class ArtCache(Base):
     spotify_url: Mapped[str] = mapped_column(String, primary_key=True)
     thumbnail_url: Mapped[str | None] = mapped_column(String, nullable=True)
     fetched_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class MusicBrainzCache(Base):
+    """Local cache of MusicBrainz genre/era lookups, keyed by ISRC.
+
+    Cached permanently, including "not found" results (release_year=None, empty
+    genre_tags) -- MusicBrainz's anonymous rate limit (~1 req/sec) is precious, and a
+    track that isn't in their database now won't suddenly appear on a retry.
+    """
+
+    __tablename__ = "musicbrainz_cache"
+
+    isrc: Mapped[str] = mapped_column(String, primary_key=True)
+    release_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    genre_tags: Mapped[dict[str, int] | None] = mapped_column(JSON, nullable=True)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

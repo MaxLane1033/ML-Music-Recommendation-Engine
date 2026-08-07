@@ -385,7 +385,7 @@ async function renderWeights() {
     slider.type = "range";
     slider.min = "0";
     slider.max = "3";
-    slider.step = "0.1";
+    slider.step = "0.05";
     slider.value = currentValue;
     slider.addEventListener("input", () => {
       valueDisplay.textContent = parseFloat(slider.value).toFixed(1);
